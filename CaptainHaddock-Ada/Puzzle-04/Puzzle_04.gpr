@@ -2,24 +2,38 @@
 -- Author : William J. FRANCK
 -- e-Mail : william@sterna.io
 --
--- Initial creation date : 2020-12-04
+-- Creation date : 2020-12-04
 -- ------------------------------------------------
--- License : CC-BY-SA 
+-- Copyright: to the Author
+-- ------------------------------------------------
+-- License  : CC-BY-SA 
 -- ------------------------------------------------
 project Puzzle_04 is
 
-   for Languages use ("Ada");
-   for Main use ("src/Puzzle_04.adb");
+    for Languages use ("Ada");
+    for Main use ("src/Puzzle_04.adb");
 
-   for Create_Missing_Dirs use "True";
-   for Source_Dirs use ("src/**");  
-   for Object_Dir use ".build/obj";
-   for Exec_Dir use ".build/bin";
+    for Create_Missing_Dirs use "True";
+    for Source_Dirs use ("src/**");  
+    for Object_Dir use ".build/obj";
+    for Exec_Dir use ".build/bin";
    
  
-   package Naming is
-      for Casing use "mixedcase";
-   end Naming;
+    package Naming is
+        for Casing use "mixedcase";
+    end Naming;
 
+    package Pretty_Printer is
+        for name_case_as_declared use "True";
+        for enum_upper_case  use "True";
+        for max_line_length use "130"; 
+        for indentation use "4";
+        for no_compact use "True";
+        for use_on_new_line use "True";
+        for split_line_before_record use "True";
+        for decimal_grouping use "3";
+        for base_grouping use "3";
+    end Pretty_Printer;
+      
 end Puzzle_04;
 
