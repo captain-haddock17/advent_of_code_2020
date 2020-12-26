@@ -24,6 +24,17 @@ project Puzzle_04 is
     end Naming;
 
     package Pretty_Printer is
+        for Default_Switches ("ada") use (
+            "--enum_upper_case", 
+            "--max_line_length=130",
+            "--indentation=4",
+            "--no-compact",
+            "--use_on_new_line",
+            "--separate-stmt-name",
+            "--split_line_before_record",
+            "--wide-character-encoding=8",
+            "--comments-unchanged");
+   
         for name_case_as_declared use "True";
         for enum_upper_case  use "True";
         for max_line_length use "130"; 
@@ -31,9 +42,10 @@ project Puzzle_04 is
         for no_compact use "True";
         for use_on_new_line use "True";
         for split_line_before_record use "True";
+        
         for decimal_grouping use "3";
         for base_grouping use "3";
     end Pretty_Printer;
-      
+     -- gnatpp -PPuzzle_04.gpr  --indentation 4 --no_compact --enum-upper-case
 end Puzzle_04;
 

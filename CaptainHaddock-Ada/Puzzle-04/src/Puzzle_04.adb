@@ -7,53 +7,48 @@
 -- License : CC-BY-SA
 -- ------------------------------------------------
 
-with Passport;
-use Passport;
+with Passport; use Passport;
 
-with Ada.Command_Line;
-use Ada.Command_Line;
+with Passport_Tags; use Passport_Tags;
 
-with Ada.Storage_IO;
-use Ada.Storage_IO;
+with Ada.Command_Line; use Ada.Command_Line;
 
 with Ada.Text_IO;
 -- use Ada.Text_IO;
 
--- with Ada.Text_IO.Text_Streams;
-
-with Ada.Strings.Bounded;
-use Ada.Strings.Bounded;
+with Ada.Strings;
+with Ada.Strings.Bounded; use Ada.Strings;
 
 procedure Puzzle_04 is
 -- pragma Restrictions (No_Obsolescent_Features);
 
-    package IO renames Ada.Text_IO;
-    package IOs renames Ada.Text_IO.Text_Streams;
     package TXT renames Ada.Text_IO;
-    package TXTs renames Ada.Text_IO.Text_Streams;
 
-    myPassport : Passport_page;
-
-    Password_Database : TXT.File_Type;
+    
+    Passport_Stream : TXT.File_Type;
     Missing_FileName : exception;
 
     -- ==============================================================
- --   InStreamAccess : IOs.Stream_Access;
+    --   InStreamAccess : IOs.Stream_Access;
 --    Console        : TXTs.Stream_Access;
 
-    package Record_String is new Generic_Bounded_Length (Max_Record_Length);
-    Password_Record : Record_String.Bounded_String;
-    use Record_String;
 
-    package Record_String_IO is new Ada.Storage_IO(String);
-    
-    Record_Count : Natural := 0;
+    -- Counting for reports
+    Record_Count, Passport_Count, Valid_Passport_Count : Natural := 0;
 
     Buffer            : String (1 .. Max_Record_Length);
     Buffer_Last_index : Natural := 0;
 
-    TAG_Separator : character := ' ';
-   
+    TAG_Separator : Character := ' ';
+    Tag_Index     : Natural;
+
+    use Bounded_Record_String;
+    Some_Passport_Str : Passport_String;
+
+    Element : access Passport_Element'Class;
+
+    Some_Passport : Passport_Ref;
+
 
 begin
     -- get the filename
@@ -62,59 +57,120 @@ begin
     end if;
 
     TXT.Open
-       (File => Password_Database, Name => Argument (1), Mode => TXT.In_File);
+       (File => Passport_Stream, Name => Argument (1), Mode => TXT.In_File);
 
-    -- InStreamAccess := IOs.Stream (File => Password_Database);
+    -- InStreamAccess := IOs.Stream (File => Passport_Stream);
 
     GO_TROUGH_THE_FILE :
-    while not IO.End_Of_File (Password_Database) loop
+    while not TXT.End_Of_File (Passport_Stream) loop
 
         Record_Count    := Record_Count + 1;
-        Password_Record := Null_Bounded_String;
+        Some_Passport_Str := Bounded_Record_String.Null_Bounded_String;
 
         Buffer_Last_index := 0;
-
         GET_A_LOGICAL_RECORD :
-        while not IO.End_Of_File (Password_Database) loop
+        while not TXT.End_Of_File (Passport_Stream) loop
             -- get all record segments in one logical record
 
             TXT.Get_Line
-               (File => Password_Database,
+               (File => Passport_Stream,
                 Item => Buffer,
                 Last => Buffer_Last_index);
             exit when Buffer_Last_index = 0; -- end of logical record
 
             -- append passport info gathered into the logical record
-            Password_Record :=
-               Password_Record & (Buffer (1 .. Buffer_Last_index) & " ");
+            Some_Passport_Str :=
+               Some_Passport_Str & (Buffer (1 .. Buffer_Last_index) & " ");
 
         end loop GET_A_LOGICAL_RECORD;
 
+        Some_Passport := new Passport_Record;
 
-        DISPATCH_FOR_EACH_TAG_OF_THE_RECORD :
-        while not False loop --FIXME
-            GET_A_TAG:
+        FOR_EACH_TAG_OF_THE_RECORD :
+        for Tag in Passport_Info_list'Range loop
             declare
-                  Some_Password_Info :  Passport_Element'Class :=
-                    Passport_Element'Class'Input (S);
-            begin
-                case Some_Password_Info'Tag is
-                    when 
-                Character'Read (InStreamAccess, TAG_Separator);
-            end GET_A_TAG;
-        end loop DISPATCH_FOR_EACH_TAG_OF_THE_RECORD;
 
+            begin
+                Tag_Index :=
+                   Index
+                      (Source  => Some_Passport_Str,
+                       Pattern =>
+                          Tag_Value (Tag), -- Passport_Info_list'Image(Tag)
+                       From => 1);
+
+                -- found one !
+                Some_Passport.Is_Present (Tag) := True;
+
+                -- select Object Class
+                case Tag is
+                    when BYR =>
+                        Element := new Birth_Year;
+                    when IYR =>
+                        Element := new Issue_Year;
+                    when EYR =>
+                        Element := new Expiration_Year;
+                    when HGT =>
+                        Element := new Height;
+                    when HCL =>
+                        Element := new Hair_Color;
+                    when ECL =>
+                        Element := new Eye_Color;
+                    when PID =>
+                        Element := new Passport_ID;
+                    when CID =>
+                        Element := new Country_ID;
+                end case;
+
+                -- Dispatch reading and validating
+                Input
+                   (This         => Element.All,
+                    From         => Some_Passport_Str,
+                    At_Tag_Index => Tag_Index,
+                    Add_To       => Some_Passport.All);
+
+                -- procedure dispatch(This : Passport_Element'Class; From :
+                -- Passport_String; At_Tag_Index : Natural; Add_To : in out
+                -- Passport_Record);
+
+                -- Passport_Element'Class'Input(This_Passport, Passport_Record,
+                -- Tag_Index);
+
+                -- Some_Passport_Info : Passport_Element'Class :=
+                -- Passport_Element'Class'Input (S); Character'Read
+                -- (InStreamAccess, TAG_Separator);
+
+            exception
+                when Index_Error =>
+                    Some_Passport.is_Present (Tag) := False;
+
+            end;
+
+        end loop FOR_EACH_TAG_OF_THE_RECORD;
 
         TXT.Put
            (TXT.Standard_Error,
             "Read record n°" & Natural'image (Record_Count) & "  ");
-        TXT.Put_Line (TXT.Standard_Error, To_String (Password_Record));
+        TXT.Put_Line (TXT.Standard_Error, To_String (Some_Passport_Str));
 --            Display (Console,myRecord);
+
+        -- Counting for reporting
+        if Required_Infos_are_present (Some_Passport.All) then
+            Passport_Count := Valid_Passport_Count + 1;
+        end if;
+
+        if Is_Valid (Some_Passport.All) then
+            Valid_Passport_Count := Valid_Passport_Count + 1;
+        end if;
 
     end loop GO_TROUGH_THE_FILE;
 
-    TXT.Put_Line ("Nb of records =" & Integer'Image (Record_Count));
-    TXT.Close (Password_Database);
+    TXT.Close (Passport_Stream);
+
+    -- Reporting results
+    TXT.Put_Line ("Nb of records         =" & Integer'Image (Record_Count));
+    TXT.Put_Line ("Nb of passports       =" & Integer'Image (Passport_Count));
+    TXT.Put_Line
+       ("Nb of valid passports =" & Integer'Image (Valid_Passport_Count));
 
     Set_Exit_Status (Success);
 
@@ -130,7 +186,7 @@ exception
         raise;
 
     when others =>
-        TXT.Put_Line (TXT.Standard_Error, "Error when Reading the file !");
+        TXT.Put_Line (TXT.Standard_Error, "Error when reading the file !");
         Set_Exit_Status (Failure);
         raise;
 end Puzzle_04;
